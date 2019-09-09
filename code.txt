@@ -1,0 +1,87 @@
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h> // https://github.com/knolleary/pubsubclient/releases/tag/v2.3
+
+//-------- Customise these values -----------
+const char* ssid = "VMDBC17F7";//my home wifi 
+const char* password = "sfKkszs2ymwz";//
+
+#define ORG "l9jycf"
+#define DEVICE_TYPE "NODEMCU"
+#define DEVICE_ID "ESP86266"
+#define TOKEN "Uhnfw9GBUKT)LU6aj_"
+//-------- Customise the above values --------
+
+char server[] = ORG ".messaging.internetofthings.ibmcloud.com";
+char topic[] = "iot-2/evt/status/fmt/json";
+char authMethod[] = "use-token-auth";
+char token[] = TOKEN;
+char clientId[] = "d:" ORG ":" DEVICE_TYPE ":" DEVICE_ID;
+
+WiFiClient wifiClient;
+PubSubClient client(server, 1883, NULL, wifiClient);
+
+float cf = 19.5; // caliberation factor
+ 
+int ffs1 = A0; // FlexiForce sensor is connected analog pin A0 of arduino or mega. 
+ 
+int ffsdata = 0; 
+float vout; 
+
+void setup() {
+
+ pinMode(ffs1, INPUT); 
+ Serial.begin(115200);
+ Serial.println();
+
+ Serial.print("Connecting to "); Serial.print(ssid);
+ WiFi.begin(ssid, password);
+ while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+ } 
+ Serial.println("");
+
+ Serial.print("WiFi connected, IP address: "); Serial.println(WiFi.localIP());
+}
+
+void loop() 
+{
+
+
+  ffsdata = analogRead(ffs1);
+  vout = (ffsdata * 5.0) / 1023.0; 
+  vout = vout * cf ; 
+  Serial.print("Flexi Force sensor: "); 
+  Serial.print(vout,3); 
+  Serial.println(""); 
+  delay(100); 
+   
+  if (!!!client.connected()) 
+  {
+   Serial.print("Reconnecting client to ");
+   Serial.println(server);
+   while (!!!client.connect(clientId, authMethod, token)) 
+   {
+      Serial.print(".");
+      delay(500);
+   }
+   Serial.println();
+  }
+
+  String payload = "{\"d\":{\"status of the window\":\"ESP86266.Test1\",\"Sensor value\":";
+  payload += vout;
+  payload += "}}";
+  
+  Serial.print("Sending payload: ");
+  Serial.println(payload);
+  
+  if (client.publish(topic, (char*) payload.c_str())) 
+  {
+   Serial.println("Publish ok");
+  } else 
+  {
+   Serial.println("Publish failed");
+  }
+
+ delay(10000);
+}
